@@ -2,31 +2,55 @@ import streamlit as st
 import numpy as np
 import tensorflow as tf
 from PIL import Image
+import gdown
+import os
 
-# Load model
+# =========================
+# Load Model dari Google Drive
+# =========================
 @st.cache_resource
 def load_model():
-    model = tf.keras.models.load_model("model.h5")   # atau model.keras
+    # Google Drive file id
+    file_id = "1bOh9d5IA94IqzdAyb3kGMZqJ9KCYTCh6"
+    url = f"https://drive.google.com/uc?id={file_id}"
+
+    # Simpan sementara
+    output = "model.h5"
+
+    # Download jika belum ada
+    if not os.path.exists(output):
+        gdown.download(url, output, quiet=False)
+
+    # Load model
+    model = tf.keras.models.load_model(output)
     return model
 
 model = load_model()
 
-st.title("🍃 Mango Leaf Disease Detection")
-st.write("Model EfficientNetB7 — Klasifikasi penyakit daun mangga")
+# =========================
+# UI Streamlit Dasar
+# =========================
+st.title("🍃 Deteksi Penyakit Daun Mangga")
 
-uploaded = st.file_uploader("Upload gambar daun mangga", type=["jpg", "png", "jpeg"])
+st.write("""
+Upload gambar daun mangga untuk dideteksi penyakitnya.
+""")
 
-if uploaded is not None:
-    image = Image.open(uploaded).convert("RGB")
-    st.image(image, caption="Gambar yang diupload", width=300)
+uploaded_file = st.file_uploader("Pilih gambar...", type=["jpg", "jpeg", "png"])
 
-    # Preprocessing
+if uploaded_file is not None:
+    image = Image.open(uploaded_file).convert("RGB")
+    st.image(image, caption="Gambar yang diupload", use_column_width=True)
+
+    # Preprocess
     img = image.resize((224, 224))
-    img = np.array(img) / 255.0
-    img = np.expand_dims(img, axis=0)
+    img_array = np.array(img) / 255.0
+    img_array = np.expand_dims(img_array, axis=0)
 
     # Predict
-    pred = model.predict(img)
-    class_index = np.argmax(pred)
+    prediction = model.predict(img_array)
+    class_idx = np.argmax(prediction)
+    confidence  = np.max(prediction)
 
-    st.success(f"Prediksi: Kelas {class_index}")
+    st.markdown(f"**Prediksi Kelas:** {class_idx}")
+    st.markdown(f"**Confidence:** {confidence*100:.2f}%")
