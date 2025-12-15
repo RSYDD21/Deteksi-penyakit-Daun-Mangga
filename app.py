@@ -4,6 +4,7 @@ import json
 from PIL import Image
 import tensorflow as tf
 import os
+import gdown
 
 os.environ["STREAMLIT_BROWSER_GATHER_USAGE_STATS"] = "false"
 
@@ -12,8 +13,14 @@ IMG_SIZE = (224, 224)
 # =========================
 # Load Model TFLite
 # =========================
+MODEL_PATH = "model.tflite"
+GDRIVE_ID = "1qmYNmzOb3phMo5CZXAidjUc6ZFuBlVWJ"
+GDRIVE_URL = f"https://drive.google.com/uc?id={GDRIVE_ID}"
 @st.cache_resource
 def load_tflite():
+     if not os.path.exists(MODEL_PATH):
+        gdown.download(GDRIVE_URL, MODEL_PATH, quiet=False)
+         
     interpreter = tf.lite.Interpreter(model_path="model.tflite")
     interpreter.allocate_tensors()
     return interpreter
