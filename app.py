@@ -16,12 +16,13 @@ IMG_SIZE = (224, 224)
 MODEL_PATH = "model.tflite"
 GDRIVE_ID = "1qmYNmzOb3phMo5CZXAidjUc6ZFuBlVWJ"
 GDRIVE_URL = f"https://drive.google.com/uc?id={GDRIVE_ID}"
-@st.cache_resource
+
 def load_tflite():
-     if not os.path.exists(MODEL_PATH):
+    # Download model jika belum ada
+    if not os.path.exists(MODEL_PATH):
         gdown.download(GDRIVE_URL, MODEL_PATH, quiet=False)
-         
-    interpreter = tf.lite.Interpreter(model_path="model.tflite")
+
+    interpreter = tf.lite.Interpreter(model_path=MODEL_PATH)
     interpreter.allocate_tensors()
     return interpreter
 
