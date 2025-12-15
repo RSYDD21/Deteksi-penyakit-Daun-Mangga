@@ -1,56 +1,61 @@
 import streamlit as st
 import numpy as np
-import tensorflow as tf
+import json
 from PIL import Image
-import gdown
+import tensorflow as tf
 import os
 
+os.environ["STREAMLIT_BROWSER_GATHER_USAGE_STATS"] = "false"
+
+IMG_SIZE = (224, 224)
+
 # =========================
-# Load Model dari Google Drive
+# Load Model TFLite
 # =========================
 @st.cache_resource
-def load_model():
-    # Google Drive file id
-    file_id = "1bOh9d5IA94IqzdAyb3kGMZqJ9KCYTCh6"
-    url = f"https://drive.google.com/uc?id={file_id}"
+def load_tflite():
+    interpreter = tf.lite.Interpreter(model_path="model.tflite")
+    interpreter.allocate_tensors()
+    return interpreter
 
-    # Simpan sementara
-    output = "model.h5"
+interpreter = load_tflite()
 
-    # Download jika belum ada
-    if not os.path.exists(output):
-        gdown.download(url, output, quiet=False)
+input_details = interpreter.get_input_details()
+output_details = interpreter.get_output_details()
 
-    # Load model
-    model = tf.keras.models.load_model(output)
-    return model
-
-model = load_model()
+# Load labels
+with open("labels.json", "r") as f:
+    labels = json.load(f)
 
 # =========================
-# UI Streamlit Dasar
+# UI
 # =========================
+st.set_page_config(
+    page_title="Deteksi Penyakit Daun Mangga",
+    page_icon="🍃"
+)
+
 st.title("🍃 Deteksi Penyakit Daun Mangga")
+st.write("Upload gambar daun mangga untuk mendeteksi jenis penyakit.")
 
-st.write("""
-Upload gambar daun mangga untuk dideteksi penyakitnya.
-""")
+file = st.file_uploader("Upload gambar daun mangga", type=["jpg", "jpeg", "png"])
 
-uploaded_file = st.file_uploader("Pilih gambar...", type=["jpg", "jpeg", "png"])
+if file:
+    image = Image.open(file).convert("RGB")
+    st.image(image, use_container_width=True)
 
-if uploaded_file is not None:
-    image = Image.open(uploaded_file).convert("RGB")
-    st.image(image, caption="Gambar yang diupload", use_column_width=True)
-
-    # Preprocess
-    img = image.resize((224, 224))
-    img_array = np.array(img) / 255.0
+    # Preprocessing
+    img = image.resize(IMG_SIZE)
+    img_array = np.array(img, dtype=np.float32) / 255.0
     img_array = np.expand_dims(img_array, axis=0)
 
-    # Predict
-    prediction = model.predict(img_array)
-    class_idx = np.argmax(prediction)
-    confidence  = np.max(prediction)
+    # Inference
+    interpreter.set_tensor(input_details[0]["index"], img_array)
+    interpreter.invoke()
+    preds = interpreter.get_tensor(output_details[0]["index"])
 
-    st.markdown(f"**Prediksi Kelas:** {class_idx}")
-    st.markdown(f"**Confidence:** {confidence*100:.2f}%")
+    idx = int(np.argmax(preds))
+    conf = float(np.max(preds)) * 100
+
+    st.success(f"🦠 Penyakit: **{labels[idx]}**")
+    st.info(f"📊 Confidence: **{conf:.2f}%**")
